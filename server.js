@@ -1,58 +1,40 @@
 const express = require('express')
+require('dotenv').config()
 
 const app = express()
 const PORT = process.env.PORT || 3333
 
-const client = require('./config/client')
+const db = require('./config/client')
 
-const Student = require('./models/Student')
-const Course = require('./models/Course')
+const session = require('express-session')
+const MongoStore = require('connect-mongo');
+
+const view_routes = require('./routes/view_routes')
+const auth_routes = require('./routes/auth_routes')
+const api_routes = require('./routes/api_routes')
 
 app.use(express.json())
 
-// Get All Students
-app.get('/api/students', async (req, res) => {
-  const students = await Student.find().populate('courses')
+app.use(express.static('public'))
 
-  res.json(students)
-})
+// Apply Session Middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: true,
+  store: MongoStore.create({ client: db.client }),
+  // cookie: { secure: true }
+}))
 
-// Create/Add a Student
-app.post('/api/students', async (req, res) => {
-  try {
-    const student = await Student.create(req.body)
+// Load Routes
+app.use('/', [
+  view_routes
+])
 
-    res.json(student)
-  } catch (error) {
-    console.log(error.errors)
+app.use('/api/auth', auth_routes)
+app.use('/api', api_routes)
 
-    res.json({
-      message: 'Validation Error. Please ensure all required fields have been entered'
-    })
-  }
-})
-
-// SHOW THE FINDONEANDUPDATE
-// Add a course to a student
-app.put('/api/course/:student_id', async (req, res) => {
-  const student = await Student.findById(req.params.student_id)
-
-  let course = await Course.findOne({
-    name: req.body.name,
-    university: req.body.university
-  })
-
-  if (!course) course = await Course.create(req.body)
-
-  student.courses.push(course._id)
-
-  // Triggers the change/update in the database
-  student.save()
-
-  res.json(student)
-})
-
-client.once('open', () => {
+db.connection.once('open', () => {
   console.log('DB connected')
 
   app.listen(PORT, () => console.log('Server started on port', PORT))

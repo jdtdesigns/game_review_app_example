@@ -1,5 +1,10 @@
 const mongoose = require('mongoose');
 
-mongoose.connect('mongodb://127.0.0.1:27017/students_db');
+mongoose.connect(`mongodb://127.0.0.1:27017/${process.env.DB_NAME}`);
 
-module.exports = mongoose.connection
+const connection = mongoose.connection
+
+module.exports = {
+  connection,
+  client: connection.getClient() // Base MongoClient connection
+}
